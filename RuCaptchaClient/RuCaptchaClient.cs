@@ -73,16 +73,31 @@ namespace mevoronin.RuCaptchaNETClient
         public string UploadCaptchaFile(string fileName, CaptchaConfig config)
         {
             using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read))
-                return UploadCaptchaFromStream(config, fileStream);
+                return UploadCaptchaFromStream(fileStream, config);
         }
 
         /// <summary>
         /// Загрузить файл капчи из потока
         /// </summary>
+        /// <param name="url">Ссылка на капчу</param>
         /// <param name="config">Параметры</param>
-        /// <param name="stream">Поток с картинкой капчи</param>
         /// <returns></returns>
-        public string UploadCaptchaFromStream(CaptchaConfig config, FileStream stream)
+        public string UploadCaptchaFromUrl(string url, CaptchaConfig config = null)
+        {
+            var wc = new WebClient();
+            using (var stream = new MemoryStream(wc.DownloadData(url)))
+            {
+                return UploadCaptchaFromStream(stream, config);
+            }
+        }
+
+        /// <summary>
+        /// Загрузить файл капчи из потока
+        /// </summary>
+        /// <param name="stream">Поток с картинкой капчи</param>
+        /// <param name="config">Параметры</param>
+        /// <returns></returns>
+        public string UploadCaptchaFromStream(Stream stream, CaptchaConfig config)
         {
             string url = string.Format("{0}/in.php", host);
             NameValueCollection nvc = new NameValueCollection();
