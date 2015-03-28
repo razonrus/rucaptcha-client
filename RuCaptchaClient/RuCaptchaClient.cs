@@ -58,7 +58,7 @@ namespace mevoronin.RuCaptchaNETClient
         /// <summary>
         /// Загрузить файл капчи
         /// </summary>
-        /// <param name="fileName">уть к файлу с капчей</param>
+        /// <param name="fileName">путь к файлу с капчей</param>
         /// <returns></returns>
         public string UploadCaptchaFile(string fileName)
         {
@@ -67,10 +67,22 @@ namespace mevoronin.RuCaptchaNETClient
         /// <summary>
         /// Загрузить файл капчи
         /// </summary>
-        /// <param name="fileName">уть к файлу с капчей</param>
+        /// <param name="fileName">путь к файлу с капчей</param>
         /// <param name="config">Параметры</param>
         /// <returns></returns>
         public string UploadCaptchaFile(string fileName, CaptchaConfig config)
+        {
+            using (var fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read))
+                return UploadCaptchaFromStream(config, fileStream);
+        }
+
+        /// <summary>
+        /// Загрузить файл капчи из потока
+        /// </summary>
+        /// <param name="config">Параметры</param>
+        /// <param name="stream">Поток с картинкой капчи</param>
+        /// <returns></returns>
+        public string UploadCaptchaFromStream(CaptchaConfig config, FileStream stream)
         {
             string url = string.Format("{0}/in.php", host);
             NameValueCollection nvc = new NameValueCollection();
@@ -81,7 +93,7 @@ namespace mevoronin.RuCaptchaNETClient
             string boundary = "---------------------------" + DateTime.Now.Ticks.ToString("x");
             byte[] boundarybytes = System.Text.Encoding.ASCII.GetBytes("\r\n--" + boundary + "\r\n");
 
-            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            HttpWebRequest request = (HttpWebRequest) WebRequest.Create(url);
             request.ContentType = "multipart/form-data; boundary=" + boundary;
             request.Method = "POST";
             request.KeepAlive = true;
@@ -100,18 +112,16 @@ namespace mevoronin.RuCaptchaNETClient
             requestStream.Write(boundarybytes, 0, boundarybytes.Length);
 
             string headerTemplate = "Content-Disposition: form-data; name=\"{0}\"; filename=\"{1}\"\r\nContent-Type: {2}\r\n\r\n";
-            string header = string.Format(headerTemplate, "file", fileName, "image/jpeg");
+            string header = string.Format(headerTemplate, "file", "fileName", "image/jpeg");
             byte[] headerbytes = System.Text.Encoding.UTF8.GetBytes(header);
             requestStream.Write(headerbytes, 0, headerbytes.Length);
-
-            FileStream fileStream = new FileStream(fileName, FileMode.Open, FileAccess.Read);
+            
             byte[] buffer = new byte[4096];
             int bytesRead = 0;
-            while ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) != 0)
+            while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
             {
                 requestStream.Write(buffer, 0, bytesRead);
             }
-            fileStream.Close();
 
             byte[] trailer = System.Text.Encoding.ASCII.GetBytes("\r\n--" + boundary + "--\r\n");
             requestStream.Write(trailer, 0, trailer.Length);
@@ -123,7 +133,6 @@ namespace mevoronin.RuCaptchaNETClient
                 StreamReader responseReader = new StreamReader(responseStream);
                 return ParseAnswer(responseReader.ReadToEnd());
             }
-
         }
 
         /// <summary>
