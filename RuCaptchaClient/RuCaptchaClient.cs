@@ -1,4 +1,6 @@
-﻿using System;
+﻿#region
+
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -7,19 +9,21 @@ using System.Linq;
 using System.Net;
 using System.Text;
 
+#endregion
+
 namespace mevoronin.RuCaptchaNETClient
 {
     /// <summary>
-    /// Клиент сервиса RuCaptcha
+    ///     Клиент сервиса RuCaptcha
     /// </summary>
     public class RuCaptchaClient
     {
+        private const string host = "http://rucaptcha.com";
+        private static Dictionary<string, string> errors;
         private readonly string api_key;
-        const string host = "http://rucaptcha.com";
-        static Dictionary<string, string> errors;
 
         /// <summary>
-        /// Конструктор
+        ///     Конструктор
         /// </summary>
         /// <param name="api_key">Ключ доступа к API</param>
         public RuCaptchaClient(string api_key)
@@ -45,18 +49,18 @@ namespace mevoronin.RuCaptchaNETClient
         }
 
         /// <summary>
-        /// Получить расшифрованное значение капчи
+        ///     Получить расшифрованное значение капчи
         /// </summary>
         /// <param name="captchaId">Id капчи</param>
         /// <returns></returns>
         public string GetCaptcha(string captchaId)
         {
-            string url = string.Format("{0}/res.php?key={1}&action=get&id={2}", host, api_key, captchaId);
+            var url = string.Format("{0}/res.php?key={1}&action=get&id={2}", host, api_key, captchaId);
             return MakeGetRequest(url);
         }
 
         /// <summary>
-        /// Загрузить файл капчи
+        ///     Загрузить файл капчи
         /// </summary>
         /// <param name="fileName">путь к файлу с капчей</param>
         /// <returns></returns>
@@ -64,8 +68,9 @@ namespace mevoronin.RuCaptchaNETClient
         {
             return UploadCaptchaFile(fileName, null);
         }
+
         /// <summary>
-        /// Загрузить файл капчи
+        ///     Загрузить файл капчи
         /// </summary>
         /// <param name="fileName">путь к файлу с капчей</param>
         /// <param name="config">Параметры</param>
@@ -77,7 +82,7 @@ namespace mevoronin.RuCaptchaNETClient
         }
 
         /// <summary>
-        /// Загрузить файл капчи из потока
+        ///     Загрузить файл капчи из потока
         /// </summary>
         /// <param name="url">Ссылка на капчу</param>
         /// <param name="config">Параметры</param>
@@ -92,105 +97,103 @@ namespace mevoronin.RuCaptchaNETClient
         }
 
         /// <summary>
-        /// Загрузить файл капчи из потока
+        ///     Загрузить файл капчи из потока
         /// </summary>
         /// <param name="stream">Поток с картинкой капчи</param>
         /// <param name="config">Параметры</param>
         /// <returns></returns>
         public string UploadCaptchaFromStream(Stream stream, CaptchaConfig config)
         {
-            string url = string.Format("{0}/in.php", host);
-            NameValueCollection nvc = new NameValueCollection();
+            var url = string.Format("{0}/in.php", host);
+            var nvc = new NameValueCollection();
             nvc.Add("key", api_key);
             if (config != null)
                 nvc.Add(config.GetParameters());
 
-            string boundary = "---------------------------" + DateTime.Now.Ticks.ToString("x");
-            byte[] boundarybytes = System.Text.Encoding.ASCII.GetBytes("\r\n--" + boundary + "\r\n");
+            var boundary = "---------------------------" + DateTime.Now.Ticks.ToString("x");
+            var boundarybytes = Encoding.ASCII.GetBytes("\r\n--" + boundary + "\r\n");
 
-            HttpWebRequest request = (HttpWebRequest) WebRequest.Create(url);
+            var request = (HttpWebRequest) WebRequest.Create(url);
             request.ContentType = "multipart/form-data; boundary=" + boundary;
             request.Method = "POST";
             request.KeepAlive = true;
-            request.Credentials = System.Net.CredentialCache.DefaultCredentials;
+            request.Credentials = CredentialCache.DefaultCredentials;
 
-            Stream requestStream = request.GetRequestStream();
+            var requestStream = request.GetRequestStream();
 
-            string formdataTemplate = "Content-Disposition: form-data; name=\"{0}\"\r\n\r\n{1}";
+            var formdataTemplate = "Content-Disposition: form-data; name=\"{0}\"\r\n\r\n{1}";
             foreach (string key in nvc.Keys)
             {
                 requestStream.Write(boundarybytes, 0, boundarybytes.Length);
-                string formitem = string.Format(formdataTemplate, key, nvc[key]);
-                byte[] formitembytes = System.Text.Encoding.UTF8.GetBytes(formitem);
+                var formitem = string.Format(formdataTemplate, key, nvc[key]);
+                var formitembytes = Encoding.UTF8.GetBytes(formitem);
                 requestStream.Write(formitembytes, 0, formitembytes.Length);
             }
             requestStream.Write(boundarybytes, 0, boundarybytes.Length);
 
-            string headerTemplate = "Content-Disposition: form-data; name=\"{0}\"; filename=\"{1}\"\r\nContent-Type: {2}\r\n\r\n";
-            string header = string.Format(headerTemplate, "file", "fileName", "image/jpeg");
-            byte[] headerbytes = System.Text.Encoding.UTF8.GetBytes(header);
+            var headerTemplate = "Content-Disposition: form-data; name=\"{0}\"; filename=\"{1}\"\r\nContent-Type: {2}\r\n\r\n";
+            var header = string.Format(headerTemplate, "file", "fileName", "image/jpeg");
+            var headerbytes = Encoding.UTF8.GetBytes(header);
             requestStream.Write(headerbytes, 0, headerbytes.Length);
-            
-            byte[] buffer = new byte[4096];
-            int bytesRead = 0;
+
+            var buffer = new byte[4096];
+            var bytesRead = 0;
             while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
             {
                 requestStream.Write(buffer, 0, bytesRead);
             }
 
-            byte[] trailer = System.Text.Encoding.ASCII.GetBytes("\r\n--" + boundary + "--\r\n");
+            var trailer = Encoding.ASCII.GetBytes("\r\n--" + boundary + "--\r\n");
             requestStream.Write(trailer, 0, trailer.Length);
             requestStream.Close();
 
-            using (WebResponse response = request.GetResponse())
+            using (var response = request.GetResponse())
             {
-                Stream responseStream = response.GetResponseStream();
-                StreamReader responseReader = new StreamReader(responseStream);
+                var responseStream = response.GetResponseStream();
+                var responseReader = new StreamReader(responseStream);
                 return ParseAnswer(responseReader.ReadToEnd());
             }
         }
 
         /// <summary>
-        /// Получить текущий баланс аккаунта
+        ///     Получить текущий баланс аккаунта
         /// </summary>
         /// <returns></returns>
         public decimal GetBalance()
         {
-            string url = string.Format("{0}/res.php?key={1}&action=getbalance", host, api_key);
-            string string_balance = MakeGetRequest(url);
-            decimal balance = decimal.Parse(string_balance, CultureInfo.InvariantCulture.NumberFormat);
+            var url = string.Format("{0}/res.php?key={1}&action=getbalance", host, api_key);
+            var string_balance = MakeGetRequest(url);
+            var balance = decimal.Parse(string_balance, CultureInfo.InvariantCulture.NumberFormat);
             return balance;
         }
 
         /// <summary>
-        /// Выполнение Get запроса по указанному URL
+        ///     Выполнение Get запроса по указанному URL
         /// </summary>
         private string MakeGetRequest(string url)
         {
-            HttpWebRequest request = (HttpWebRequest)HttpWebRequest.Create(url);
+            var request = (HttpWebRequest) WebRequest.Create(url);
             request.Method = "GET";
-            string serviceAnswer = "";
-            using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
+            var serviceAnswer = "";
+            using (var response = (HttpWebResponse) request.GetResponse())
             {
-                Stream responseStream = response.GetResponseStream();
-                StreamReader reader = new StreamReader(responseStream);
+                var responseStream = response.GetResponseStream();
+                var reader = new StreamReader(responseStream);
                 serviceAnswer = reader.ReadToEnd();
             }
             return ParseAnswer(serviceAnswer);
         }
 
         /// <summary>
-        /// Разбор ответа
+        ///     Разбор ответа
         /// </summary>
         private string ParseAnswer(string serviceAnswer)
         {
             if (errors.Keys.Contains(serviceAnswer))
                 throw new RuCaptchaException(string.Format("{0} ({1})", errors[serviceAnswer], serviceAnswer));
-            else if (serviceAnswer.StartsWith("OK|"))
+            if (serviceAnswer.StartsWith("OK|"))
                 return serviceAnswer.Substring(3);
-            else
-                return serviceAnswer;
-
+            return serviceAnswer;
         }
     }
 }
