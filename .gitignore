@@ -1,3 +1,4 @@
 *.suo
 RuCaptchaClient/obj/*
 RuCaptchaClient/bin/*
+_ReSharper*
